@@ -38,3 +38,30 @@ def optimize_leg(state, planet, tcap, seed):
     if viol > 0:
         return math.inf, list(res.x), None
     return dv, list(res.x), st
+
+def beam_search(tcap, width=8, seed=0):
+    """Kthen listen e tour-eve te plota: (DV, T, x)."""
+    # niveli 1: nje tour i pjesshem per cdo planet te pare
+    beam = []                               # elementet: (DV, x, state, renditja)
+    for p in range(7):
+        dv, x, st = optimize_entry(p, seed + p)
+        beam.append((dv, x, st, [p]))
+    # nivelet 2..7: shtojme nga nje planet
+    for level in range(6):
+        children = []
+        for i, (dv, x, st, seq) in enumerate(beam):
+            for p in range(7):
+                if p in seq:
+                    continue
+                d, z, st2 = optimize_leg(st, p, tcap, seed + 100 * level + 10 * i + p)
+                if st2 is not None:
+                    children.append((dv + d, x + z, st2, seq + [p]))
+        children.sort(key=lambda c: c[0])
+        beam = children[:width]             # ruajme vetem me te mirat
+    tours = []
+    for dv, x, st, seq in beam:
+        full = x + [float(s) for s in seq]
+        f = P.fitness(full)
+        if f[2] == 0 and f[3] <= 0:
+            tours.append((f[0], f[1], full))
+    return tours
