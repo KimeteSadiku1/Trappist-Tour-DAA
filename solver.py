@@ -65,3 +65,31 @@ def beam_search(tcap, width=8, seed=0):
         if f[2] == 0 and f[3] <= 0:
             tours.append((f[0], f[1], full))
     return tours
+
+def pareto_front(tours):
+    """Zgjidhjet jo-te-dominuara (asnje tjeter nuk eshte me e mire ne te dy objektivat)."""
+    front, best_T = [], math.inf
+    for dv, T, x in sorted(tours):   # renditur sipas DV
+        if T < best_T:
+            front.append((dv, T, x))
+            best_T = T
+    return front
+
+
+def hypervolume(points):
+    """Siperfaqja e dominuar nga pikat deri te pika referuese (2 objektiva)."""
+    pts = [(dv, T) for dv, T, *_ in points if dv < REF[0] and T < REF[1]]
+    hv, prev_T = 0.0, REF[1]
+    for dv, T in sorted(pts):
+        if T < prev_T:
+            hv += (REF[0] - dv) * (prev_T - T)
+            prev_T = T
+    return hv
+
+
+def save_submission(front, path="submission.json"):
+    xs = [x for dv, T, x in front if dv < REF[0] and T < REF[1]][:100]
+    with open(path, "w") as fh:
+        json.dump([{"decisionVector": xs, "problem": "trappist-tour",
+                    "challenge": "spoc-trappist-tour"}], fh)
+    return len(xs)
