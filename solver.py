@@ -93,3 +93,8 @@ def save_submission(front, path="submission.json"):
         json.dump([{"decisionVector": xs, "problem": "trappist-tour",
                     "challenge": "spoc-trappist-tour"}], fh)
     return len(xs)
+
+if __name__ == "__main__":
+    print("fillon...")
+    dv, x, st = optimize_entry(0, 0)
+    print("hyrja te b: DV =", round(dv, 1))
