@@ -152,3 +152,75 @@ $$\Delta V = \Delta V_0 + \sum_{k=1}^{6} \Delta V_{k}$$
 Për çdo hark, nga elementet orbitale llogaritet periapsisi $r_{peri} = a\,|1 - e|$. Nëse sonda e kalon periapsisin gjatë harkut dhe $r_{peri} < r_{safe}$, atëherë tour-i shkel kufizimin.
  
 ---
+
+ 
+## 3. Algoritmi i zgjidhjes
+ 
+Problemi ka dy pjesë të ndryshme: një pjesë **diskrete** (renditja e planetëve, $7! = 5040$ mundësi) dhe një pjesë **e vazhdueshme** (27 parametra). Ndahet në dy shtresa.
+ 
+### 3.1 Differential Evolution (parametrat e një udhëtimi)
+ 
+Për një udhëtim të vetëm kërkohen 4 parametra (3 për hyrjen). Përdoret `scipy.optimize.differential_evolution` me strategjinë e paracaktuar `best1bin`, ku çdo individ i ri formohet nga:
+ 
+$$\vec w = \vec p_{best} + F\,(\vec p_{r_1} - \vec p_{r_2})$$
+ 
+pastaj kryqëzohet me prindin dhe mbahet më i miri. Funksioni i kostos për një udhëtim:
+ 
+$$f(\vec z) = \Delta V_{k}(\vec z) + \lambda\, T_k + 10^7 \cdot [\text{shkelje}]$$
+ 
+me $\lambda = 0.5\ \text{m/s për ditë}$. Termi $\lambda T_k$ e shtyn algoritmin drejt udhëtimeve të shkurtra, ndërsa $10^7$ është penalizim i madh për çdo plan që i afrohet yllit. Për hyrjen: $T_0 \in [1400, 1600]$ ditë, ku hyrja është pothuajse falas ($\Delta V_0 \approx 0$).
+ 
+### 3.2 Beam Search (renditja e planetëve)
+ 
+Në vend që të provohen të 5040 renditjet, tour-i ndërtohet **nivel pas niveli** dhe në çdo nivel mbahen vetëm `W` rrugët me $\Delta V$ më të ulët (pa $\lambda T$):
+ 
+```
+Niveli 1: për secilin nga 7 planetët si i pari  → DE për hyrjen
+Niveli 2..7: për çdo rrugë të mbajtur dhe çdo planet të papërdorur
+             → DE për udhëtimin; mbaj W më të mirët
+Në fund: vlerëso tour-et e plota me fitness, mbaj ata të pranueshëm
+```
+ 
+**Greedy** është rasti $W = 1$.
+ 
+### 3.3 Fronti Pareto me kufij të ndryshëm kohorë
+ 
+Një ekzekutim i Beam Search me një `tcap` të vetëm (koha maksimale e një udhëtimi) jep tour-e me kohë të ngjashme. Që fronti të ketë pika të larmishme, algoritmi ekzekutohet për 8 vlera:
+ 
+$$t_{cap} \in \{50,\ 100,\ 150,\ 200,\ 250,\ 300,\ 350,\ 400\}\ \text{ditë}$$
+ 
+Ekzekutimet bëhen paralelisht (`multiprocessing.Pool`), dhe rezultatet bashkohen në një front të vetëm. Kufiri i sipërm ka kuptim sepse $T_{tot} \approx 1500 + 6\, t_{cap}$ dhe duhet të mbetet nën 4000 ditë, pra $t_{cap} < 417$.
+ 
+---
+
+## 4. Analiza e kompleksitetit
+ 
+### 4.1 Pse jo kërkim i plotë
+ 
+Numri i thirrjeve të DE në kërkimin e plotë (të gjitha renditjet):
+ 
+$$N_{full} = 7 + 7\cdot 6 + 7\cdot 6 \cdot 5 + 7\cdot 6\cdot 5\cdot 4 + 7\cdot6\cdot5\cdot4\cdot3 + 7! + 7! = 13\,699$$
+ 
+### 4.2 Numri i thirrjeve të DE në Beam Search
+ 
+Niveli 1 kërkon 7 thirrje (një për planetin e parë). Në nivelin 2 secila nga 7 rrugët provon 6 planetë: $7 \cdot 6 = 42$ thirrje, pastaj mbahen vetëm $W$ rrugët më të mira. Në nivelet 3 deri 7, çdo rrugë e mbajtur provon përkatësisht $5, 4, 3, 2, 1$ planetë. Prandaj, për çdo $W \le 42$:
+ 
+$$N(W) = 7 + 42 + W\,(5 + 4 + 3 + 2 + 1) = 49 + 15\,W$$
+ 
+| Algoritmi | Thirrje DE | Raporti ndaj Greedy | Koha e matur | Raporti i kohës |
+|---|---|---|---|---|
+| Greedy ($W=1$) | 64 | 1.00 | 4.5 min | 1.00 |
+| Beam ($W=4$) | 109 | 1.70 | 7.9 min | 1.76 |
+| Beam ($W=8$) | 169 | 2.64 | 12.5 min | 2.78 |
+ 
+Raportet e kohës përputhen shumë mirë me ato të thirrjeve, pra **koha rritet afërsisht në mënyrë lineare me $W$**. Kërkimi i plotë do të kërkonte $13\,699 / 169 \approx 81$ herë më shumë punë se Beam $W=8$.
+ 
+### 4.3 Kostoja e një thirrje DE
+ 
+Me `popsize = 10` dhe `maxiter = 60`, popullata ka $10 \times \dim$ individë dhe vlerësohet $(60 + 1)$ herë:
+ 
+- hyrja ($\dim = 3$): $30 \times 61 = 1\,830$ vlerësime
+- udhëtimi ($\dim = 4$): $40 \times 61 = 2\,440$ vlerësime
+Për një `tcap` me $W = 8$: $7 \cdot 1830 + 162 \cdot 2440 \approx 4.1 \times 10^5$ vlerësime të funksionit të udhëtimit, dhe këtë e shumëzojmë me 8 vlera të `tcap`.
+ 
+---
