@@ -317,4 +317,93 @@ $$\frac{3\,119\,816}{3\,019\,448} - 1 \approx +3.3\%\ \ (W=8 \text{ ndaj } W=4)$
 Me kufij më të vegjël, $t_{cap} \in \{30, 40, 50, 60, 75, 100, 125, 150\}$, Beam $W=8$ dha $HV = 1{,}624{,}002$ (23 pika në front, 16.0 min), pra shumë më keq se $3{,}119{,}816$. Kjo përputhet me tabelën e seksionit 6: zgjidhjet me ΔV të ulët kërkojnë udhëtime të gjata (rreth 300 ditë), të cilat kufijtë e vegjël i përjashtojnë. Prandaj u mbajtën kufijtë 50 deri 400.
  
 ---
+
+ 
+## 8. Krahasimi me leaderboard-in e ESA-s
+ 
+![Leaderboard](figures/leaderboard.png)
+ 
+Leaderboard-i zyrtar i SpOC 2022 (Trappist Tour) ka 20 ekipe. Me hypervolume $3{,}119{,}816$ ky projekt do të renditej në **vendin 12** (mes 21 rezultateve, pra 20 ekipeve dhe projektit tonë). Është rreth **53%** e hypervolume të ekipit të parë (Space Coders, 5,870,437). Për të hyrë në top 10 duhet kaluar 3,440,254, pra rreth 10% më shumë. Kalon 9 ekipe, ndër to një me rezultat 0. Nuk arrin ekipet më të mira.
+ 
+Ky është krahasim me një listë zyrtare, por rezultati ynë nuk është dërguar në platformën e ESA-s. Numrat e leaderboard-it janë marrë nga faqja zyrtare e problemit.
+ 
+---
+ 
+## 9. Verifikimi (testet)
+ 
+`tests.py` ka 6 teste dhe të gjitha kalojnë (si lokalisht, ashtu edhe në Kaggle):
+ 
+| Testi | Çfarë verifikon |
+|---|---|
+| `test_shembulli_esa` | Shembulli zyrtar i ESA-s jep $\Delta V = 2379.0$ m/s dhe $T = 3469.8$ ditë |
+| `test_lambert` | Sonda që niset me shpejtësinë e Lambert-it arrin te objektivi, me gabim $0.0$ m |
+| `test_flyby` | Fly-by ruan madhësinë e shpejtësisë relative |
+| `test_renditja_e_gabuar` | Një planet i përsëritur shkel kufizimin e barazisë |
+| `test_pareto` | Fronti mban vetëm zgjidhjet e pa-dominuara |
+| `test_hypervolume` | HV përputhet me llogaritjet e dorës |
+ 
+Testi i parë është më i rëndësishmi: fizika e shkruar vetë riprodhon rezultatin zyrtar të ESA-s, që do të thotë se zëvendësimi i `pykep` është i saktë.
+ 
+---
+ 
+## 10. Kufizimet dhe ku mund të përmirësohet
+ 
+- **Rezultati nuk është optimal.** Ekipet më të mira arrijnë 5.6 deri 5.9 milionë HV, kundrejt 3.12 milionë tonave.
+- **Zona që nuk e mbulojmë.** Në prezantimin e tyre në workshop-un e ESA-s, ekipi Honda (HRI, hypervolume 5,601,396) thotë se pjesën më të madhe, rreth 5.4 milionë HV, e jep **një zgjidhje e vetme**. Një zgjidhje e vetme ka $HV = (2500 - \Delta V)(4000 - T) \le 2500\,(4000 - T)$, pra për 5.4 milionë duhet $T \le 1840$ ditë. Zgjidhja jonë më e shpejtë ka $T = 2039.5$ ditë, pra algoritmi ynë nuk e arrin këtë zonë.
+- **Çfarë bëjnë ata ndryshe** (sipas të njëjtit prezantim, nuk është provuar këtu): ata kufizojnë kohën e secilit udhëtim me vlera të vogla (kufij `{50, 75, ..., 175}` dhe një variant me kufij të ndryshëm për secilin udhëtim, `[135, 50, 50, 50, 35, 35]`), përdorin algoritme evolutive me popullata më të mëdha dhe e rafinojnë tour-in e plotë me CMA-ES. Edhe ata e kufizojnë hapin hyrës në $[1400, 1600]$ ditë, si ne.
+- **Beam Search rendit vetëm sipas $\Delta V$** (jo sipas kohës), prandaj nuk garantohet që $W$ më i madh të jetë gjithmonë më i mirë. Në këtë ekzekutim doli më i mirë, por kjo nuk është teoremë.
+- **Rezultati varet nga zgjedhja e `tcap`.** Me 8 vlera nga 50 deri 400 doli $HV = 3{,}119{,}816$. Me 8 vlera nga 30 deri 150 doli $1{,}624{,}002$.
+- **Përsëritshmëria.** DE dhe Random Search përdorin seed fiks, por rezultati mund të ndryshojë paksa në mjedis numerik tjetër.
+- **Mjedisi.** Të gjitha rezultatet vijnë nga një ekzekutim i ruajtur në Kaggle (rreth 27 minuta).
+---
+ 
+## 11. Struktura e projektit
+ 
+```
+Trappist-Tour-DAA/
+├── esa_code/
+│   └── trappist_tour_official.py   kodi zyrtar i ESA-s (referencë)
+├── figures/
+│   ├── pareto_front.png            fronti Pareto (plots.plot_pareto)
+│   ├── tour.png                    rruga e sondës (plots.plot_tour)
+│   ├── krahasimi.png               krahasimi i algoritmeve (compare.plot_table)
+│   └── leaderboard.png             pozita në leaderboard-in e ESA-s
+├── solutions/
+│   └── submission.json             16 zgjidhje, formati i ESA-s
+├── physics.py                      Lambert, propagimi, fly-by, planetët
+├── problem.py                      të dhënat, entry_leg, next_leg, fitness
+├── solver.py                       DE, Beam Search, Pareto, hypervolume
+├── compare.py                      krahasimi i 4 algoritmeve
+├── plots.py                        grafikët
+├── tests.py                        6 teste
+├── requirements.txt
+└── .gitignore
+```
+ 
+---
+ 
+## 12. Si ekzekutohet
+ 
+```bash
+pip install -r requirements.txt
+python tests.py            # 6 teste, duhet të kalojnë të gjitha
+```
+ 
+Ekzekutimi i plotë (Beam $W=8$, rreth 14 minuta në një makinë me 4 bërthama):
+ 
+```python
+import compare, solver, plots
+ 
+tcaps = [50, 100, 150, 200, 250, 300, 350, 400]
+tours = compare.run_beam(8, tcaps)
+front = solver.pareto_front(tours)
+ 
+print("HV =", round(solver.hypervolume(front)))
+solver.save_submission(front)                 # shkruan submission.json
+plots.plot_pareto(front)                      # pareto_front.png
+plots.plot_tour(front[len(front) // 2][2])    # tour.png
+```
+ 
+Krahasimi i plotë i 4 algoritmeve: `compare.run_all(tcaps, tours, minutes)`.
+Në Windows, `multiprocessing` kërkon që kodi të thirret brenda `if __name__ == "__main__":`.
  
